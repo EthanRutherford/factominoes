@@ -1,0 +1,18 @@
+:root {
+	/* font-sizes */
+	--tiny: 10px;
+	--small: 15px;
+	--normal: 20px;
+	--medium: 25px;
+	--large: 30px;
+	--huge: 35px;
+
+	/* greys */
+	--ash: hsl(0, 0%, 95%);
+	--light-grey: hsl(0, 0%, 80%);
+	--grey: grey;
+	--slate-light: hsl(0, 0%, 40%);
+	--slate: hsl(0, 0%, 30%);
+	--slate-dark: hsl(0, 0%, 20%);
+	--carbon: hsl(0, 0%, 12%);
+}

@@ -7,18 +7,25 @@ import {RoadOne, RoadFour, RoadThree, RoadTwo} from "../logic/traffic";
 import {MapUi} from "./map";
 import styles from "./map-maker.css";
 
-function useGame(initialBounds) {
+const mapSaveKey = "editor-map-string-save";
+function useGame() {
 	const [game, setGame] = useState();
 	const canvas = useRef();
 	useEffect(() => {
-		const map = new GameMap(initialBounds, []);
+		let map;
+		try {
+			map = fromMapString(localStorage.getItem(mapSaveKey));
+		} catch (error) {
+			map = new GameMap({width: 100, height: 100}, []);
+		}
+
 		const newGame = new Game(canvas.current, map);
 		setGame(newGame);
 		newGame.start();
 		return () => newGame.end();
 	}, []);
 
-	return [game, canvas];
+	return [game, canvas, (string) => localStorage.setItem(mapSaveKey, string)];
 }
 
 function useWarning() {
@@ -462,7 +469,7 @@ function TextAreaButGood({value, onChange, ...props}) {
 
 export function MapMaker() {
 	const [mapString, setMapString] = useState();
-	const [game, canvas] = useGame({width: 100, height: 100});
+	const [game, canvas, saveMap] = useGame();
 	const [warning, setWarning] = useWarning();
 	const curTool = useTool(game, setWarning);
 
@@ -570,7 +577,9 @@ export function MapMaker() {
 					onClick={() => {
 						curTool().onAbort?.();
 						curTool(dragTool(game, curTool, setWarning));
-						setMapString(toMapString(game.map));
+						const mapString = toMapString(game.map);
+						setMapString(mapString);
+						saveMap(mapString);
 					}}
 				>
 					Export

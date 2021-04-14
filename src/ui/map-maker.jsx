@@ -408,6 +408,7 @@ function roadTool(game) {
 function terrainTool(game) {
 	const terrainKinds = [
 		{create: (x, y) => new Terrain(x, y, 0)},
+		{create: (x, y) => new Terrain(x, y, 1)},
 	];
 
 	function place(pos, kind) {

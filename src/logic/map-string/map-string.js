@@ -80,6 +80,7 @@ const mappers = {
 	[toBase64(10)]: xyMapper,
 	[toBase64(11)]: xyMapper,
 	[toBase64(12)]: xyMapper,
+	[toBase64(13)]: xyMapper,
 };
 
 export function toMapString(map) {

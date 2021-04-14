@@ -103,4 +103,5 @@ export const v1 = {
 	[toBase64(10)]: (str, index) => parseRoad(9, str, index),
 	[toBase64(11)]: (str, index) => parseRoad(10, str, index),
 	[toBase64(12)]: (str, index) => parseTerrain(0, str, index),
+	[toBase64(13)]: (str, index) => parseTerrain(1, str, index),
 };

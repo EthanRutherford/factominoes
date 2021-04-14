@@ -73,6 +73,30 @@ export class Road extends Component {
 	cell(x, y) {
 		return this.shape.get(x, y)?.content;
 	}
+	getRandomPath(x, y) {
+		const paths = this.getPaths(x, y);
+		return randItem(paths);
+	}
+	getPaths(x, y, paths = [], path = []) {
+		const cell = this.cell(x, y);
+		if (cell == null) {
+			paths.push(path);
+			return paths;
+		}
+
+		if (path.length === 3) {
+			return paths;
+		}
+
+		for (let i = 0; i < cell.length; i++) {
+			if (cell[i]?.out ?? false) {
+				const off = dirVec[i](1);
+				this.getPaths(x + off.x, y + off.y, paths, [...path, i]);
+			}
+		}
+
+		return paths;
+	}
 }
 
 export class RoadOne extends Road {
@@ -90,13 +114,6 @@ export class RoadOne extends Road {
 
 		super(shape, cells, vertical ? 0 : 3);
 		this.vertical = vertical;
-	}
-	getNextDir(car) {
-		const {x, y} = car.shape;
-		const dir = this.cell(x, y).findIndex((e) => e != null);
-		car.lastRoad = this;
-		car.decisions = 0;
-		return dir;
 	}
 	createRenderable(renderer) {
 		const renderable = renderer.getInstance(roadShape, roadMaterial);
@@ -128,13 +145,6 @@ export class RoadTwo extends Road {
 		super(shape, cells, dir);
 		this.dir = dir;
 	}
-	getNextDir(car) {
-		const {x, y} = car.shape;
-		const dir = this.cell(x, y).findIndex((e) => e?.out);
-		car.lastRoad = this;
-		car.decisions = 0;
-		return dir;
-	}
 	createRenderable(renderer) {
 		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
 		const lines = renderer.getInstance(lineTwoShape, lineTwoMaterial);
@@ -165,33 +175,6 @@ export class RoadThree extends Road {
 		super(shape, cells, dir);
 		this.dir = dir;
 	}
-	getNextDir(car) {
-		const {x, y} = car.shape;
-		const cell = this.cell(x, y);
-		const inDirs = [];
-		const outDirs = [];
-		for (let i = 0; i < 4; i++) {
-			if (cell[i]?.in ?? false) {
-				inDirs.push(i);
-			}
-			if (cell[i]?.out ?? false) {
-				outDirs.push(i);
-			}
-		}
-
-		if (car.lastRoad === this) {
-			if (car.decisions === 2 || inDirs.length + outDirs.length === 4) {
-				return car.dir;
-			}
-
-			car.decisions++;
-		} else {
-			car.lastRoad = this;
-			car.decisions = 1;
-		}
-
-		return randItem(outDirs);
-	}
 	createRenderable(renderer) {
 		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
 		const lines = renderer.getInstance(lineThreeShape, lineThreeMaterial);
@@ -221,29 +204,6 @@ export class RoadFour extends Road {
 
 		super(shape, cells, 0);
 	}
-	getNextDir(car) {
-		const {x, y} = car.shape;
-		const cell = this.cell(x, y);
-		const dirs = [];
-		for (let i = 0; i < 4; i++) {
-			if (cell[i]?.out ?? false) {
-				dirs.push(i);
-			}
-		}
-
-		if (car.lastRoad === this) {
-			if (car.decisions === 2) {
-				return car.dir;
-			}
-
-			car.decisions++;
-		} else {
-			car.lastRoad = this;
-			car.decisions = 1;
-		}
-
-		return randItem(dirs);
-	}
 	createRenderable(renderer) {
 		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
 		const lines = renderer.getInstance(lineFourShape, lineFourMaterial);
@@ -257,6 +217,10 @@ export class RoadFour extends Road {
 	}
 }
 
+function isIntersection(cell) {
+	return cell.content instanceof RoadThree || cell.content instanceof RoadFour;
+}
+
 const blue = rgba(0, 0, .75);
 const carCoords = [{x: -.25, y: .45}, {x: .25, y: .45}, {x: .25, y: -.45}, {x: -.25, y: -.45}];
 const carShape = new Shape(carCoords, Shape.triangleFan);
@@ -267,7 +231,10 @@ export class Car extends Component {
 		this.waitTime = 0;
 		this.moving = true;
 		this.progress = 0;
-		this.dir = dir;
+		this.path = [dir];
+	}
+	get dir() {
+		return this.path[0];
 	}
 	createRenderable(renderer) {
 		const renderable = renderer.getInstance(carShape, carMaterial);
@@ -279,9 +246,9 @@ export class Car extends Component {
 	}
 	onRender(ratio) {
 		const amount = this.moving ? (this.progress + ratio) / 5 : 0;
-		const offset = dirVec[this.dir](amount);
-		this.renderable.x = this.shape.x + .5 + offset.x;
-		this.renderable.y = this.shape.y - .5 + offset.y;
+		const off = dirVec[this.dir](amount);
+		this.renderable.x = this.shape.x + .5 + off.x;
+		this.renderable.y = this.shape.y - .5 + off.y;
 		this.renderable.r = -this.dir * Math.PI / 2;
 	}
 }
@@ -350,115 +317,178 @@ export class TrafficController extends Component {
 	removeRoad(road) {
 		this.entrances.delete(road);
 	}
-	onStep(frameId) {
-		// move cars
+	moveCars() {
 		const cellToCar = new Map();
-		if (frameId % 5 === 0) {
-			for (const car of this.cars) {
-				if (car.moving) {
-					const offset = dirVec[car.dir](1);
-					car.shape.x += offset.x;
-					car.shape.y += offset.y;
-				}
 
-				const cell = this.map.shape.get(car.shape.x, car.shape.y);
-				if (!(cell?.content instanceof Road)) {
-					this.children.delete(car);
-					this.cars.delete(car);
-					continue;
-				}
-
-				if (car.moving) {
-					car.dir = cell.content.getNextDir(car);
-				}
-
-				cellToCar.set(cell, car);
+		// advance each car and determine path
+		for (const car of this.cars) {
+			if (car.moving) {
+				const dir = car.path.shift();
+				const off = dirVec[dir](1);
+				car.shape.x += off.x;
+				car.shape.y += off.y;
 			}
 
-			// collect all car's next locations
-			const contestedCells = new Map();
-			for (const car of this.cars) {
-				const offset = dirVec[car.dir](1);
-				const nx = car.shape.x + offset.x;
-				const ny = car.shape.y + offset.y;
-
-				// if nextCell is already occupied, stop the car
-				const nextCell = this.map.shape.get(nx, ny);
-				if (nextCell == null) {
-					continue;
-				}
-
-				if (cellToCar.get(nextCell) != null) {
-					car.moving = false;
-					continue;
-				}
-
-				if (!contestedCells.has(nextCell)) {
-					contestedCells.set(nextCell, []);
-				}
-
-				contestedCells.get(nextCell).push(car);
+			const cell = this.map.shape.get(car.shape.x, car.shape.y);
+			if (!(cell?.content instanceof Road)) {
+				this.children.delete(car);
+				this.cars.delete(car);
+				continue;
 			}
 
-			// resolve contested cells
-			for (const cars of contestedCells.values()) {
-				// stop cars
-				for (const car of cars) {
-					car.moving = false;
-				}
+			cellToCar.set(cell, car);
 
-				// car with largest waitTime gets to move
-				const oldestCar = cars.reduce((best, cur) => {
-					if (cur.waitTime > best.waitTime) {
-						return cur;
-					}
-
-					return best;
-				}, cars[0]);
-
-				oldestCar.moving = true;
+			if (car.path.length === 0) {
+				car.path.push(...cell.content.getRandomPath(car.shape.x, car.shape.y));
 			}
 
-			// update wait time
-			for (const car of this.cars) {
-				if (car.moving) {
-					car.waitTime = 0;
-				} else {
-					car.waitTime++;
+			if (car.path.length === 1) {
+				const off = dirVec[car.dir](1);
+				const nx = car.shape.x + off.x;
+				const ny = car.shape.y + off.y;
+				const next = this.map.shape.get(nx, ny)?.content;
+				if (next instanceof Road) {
+					car.path.push(...next.getRandomPath(nx, ny));
 				}
 			}
 		}
 
-		// add new car
-		if (frameId % 10 === 0 && this.entrances.size > 0) {
-			const entrance = randItem([...this.entrances]);
-			let dir, x, y;
-			if (entrance.vertical) {
-				if (entrance.shape.y === 0) {
-					dir = dirs.up;
-					x = entrance.shape.x + 1;
-					y = entrance.shape.y - 1;
-				} else {
-					dir = dirs.down;
-					x = entrance.shape.x;
-					y = entrance.shape.y + 1;
+		// preprocess data to be used for traffic control
+		const carToPathCells = new Map();
+		for (const car of this.cars) {
+			// get list of cells in car path
+			const pos = {x: car.shape.x, y: car.shape.y};
+			const pathCells = [this.map.shape.get(pos.x, pos.y)];
+			for (const dir of car.path) {
+				const off = dirVec[dir](1);
+				pos.x += off.x;
+				pos.y += off.y;
+				const pathCell = this.map.shape.get(pos.x, pos.y);
+				pathCells.push(pathCell);
+			}
+
+			carToPathCells.set(car, pathCells);
+		}
+
+		// handle stopping/starting cars
+		const carsAtIntersection = new Map();
+		const carsInIntersection = new Map();
+		for (const car of this.cars) {
+			const [curCell, ...nextCells] = carToPathCells.get(car);
+			if (isIntersection(curCell)) {
+				if (!carsInIntersection.has(curCell.content)) {
+					carsInIntersection.set(curCell.content, []);
 				}
-			} else if (entrance.shape.x === 0) {
-				dir = dirs.right;
-				x = entrance.shape.x - 1;
+
+				carsInIntersection.get(curCell.content).push(car);
+			}
+
+			// if nextCell is already occupied, stop the car
+			if (nextCells[0] == null) {
+				continue;
+			}
+
+			if (cellToCar.get(nextCells[0]) != null) {
+				car.moving = false;
+				continue;
+			}
+
+			// collect cars at intersections
+			if (curCell.content !== nextCells[0].content && isIntersection(nextCells[0])) {
+				if (!carsAtIntersection.has(nextCells[0].content)) {
+					carsAtIntersection.set(nextCells[0].content, []);
+				}
+
+				carsAtIntersection.get(nextCells[0].content).push(car);
+				car.moving = false;
+				continue;
+			}
+
+			// no obstacles, car can move freely
+			car.moving = true;
+		}
+
+		// handle cars at intersections
+		for (const [intersection, cars] of carsAtIntersection.entries()) {
+			// cars already in intersection keep existing claims
+			const claimedCells = new Set();
+			for (const car of carsInIntersection.get(intersection) ?? []) {
+				const cells = carToPathCells.get(car).filter((c) => c.content === intersection);
+				for (const cell of cells) {
+					claimedCells.add(cell);
+				}
+			}
+
+			// cars with higher waitTimes get higher priority
+			const sorted = cars.sort((a, b) => b.waitTime - a.waitTime);
+			for (const car of sorted) {
+				const cells = carToPathCells.get(car).filter((c) => c.content === intersection);
+
+				// if any cell in our path is claimed, abort
+				if (cells.some((c) => claimedCells.has(c))) {
+					continue;
+				}
+
+				// we get to move and claim cells
+				car.moving = true;
+				for (const cell of cells) {
+					claimedCells.add(cell);
+				}
+			}
+		}
+
+		// update wait times
+		for (const car of this.cars) {
+			if (car.moving) {
+				car.waitTime = 0;
+			} else {
+				car.waitTime++;
+			}
+		}
+
+		return cellToCar;
+	}
+	addCars(occupiedCells) {
+		const entrance = randItem([...this.entrances]);
+		let dir, x, y;
+		if (entrance.vertical) {
+			if (entrance.shape.y === 0) {
+				dir = dirs.up;
+				x = entrance.shape.x + 1;
 				y = entrance.shape.y - 1;
 			} else {
-				dir = dirs.left;
-				x = entrance.shape.x + 1;
-				y = entrance.shape.y;
+				dir = dirs.down;
+				x = entrance.shape.x;
+				y = entrance.shape.y + 1;
 			}
-
-			const off = dirVec[dir](1);
-			if (cellToCar.get(this.map.shape.get(x + off.x, y + off.y)) == null) {
-				const car = new Car(x, y, dir);
-				this.children.add(car);
-				this.cars.add(car);
-			}
+		} else if (entrance.shape.x === 0) {
+			dir = dirs.right;
+			x = entrance.shape.x - 1;
+			y = entrance.shape.y - 1;
+		} else {
+			dir = dirs.left;
+			x = entrance.shape.x + 1;
+			y = entrance.shape.y;
 		}
+
+		const off = dirVec[dir](1);
+		if (!occupiedCells.has(this.map.shape.get(x + off.x, y + off.y))) {
+			const car = new Car(x, y, dir);
+			this.children.add(car);
+			this.cars.add(car);
+		}
+	}
+	onStep(frameId) {
+		if (frameId % 5 !== 0) {
+			return;
+		}
+
+		const occupiedCells = this.moveCars();
+
+		if (frameId % 10 !== 0 || this.entrances.size === 0) {
+			return;
+		}
+
+		this.addCars(occupiedCells);
 	}
 }

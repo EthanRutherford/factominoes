@@ -259,6 +259,7 @@ export class TrafficController extends Component {
 		this.map = map;
 		this.cars = new Set();
 		this.entrances = new Set();
+		this.roadCount = 0;
 	}
 	tryAddRoad(road) {
 		// construct list of border edges
@@ -312,10 +313,12 @@ export class TrafficController extends Component {
 			}
 		}
 
+		this.roadCount++;
 		return null;
 	}
 	removeRoad(road) {
 		this.entrances.delete(road);
+		this.roadCount--;
 	}
 	moveCars() {
 		const cellToCar = new Map();
@@ -449,34 +452,37 @@ export class TrafficController extends Component {
 		return cellToCar;
 	}
 	addCars(occupiedCells) {
-		const entrance = randItem([...this.entrances]);
-		let dir, x, y;
-		if (entrance.vertical) {
-			if (entrance.shape.y === 0) {
-				dir = dirs.up;
-				x = entrance.shape.x + 1;
-				y = entrance.shape.y - 1;
-			} else {
-				dir = dirs.down;
-				x = entrance.shape.x;
-				y = entrance.shape.y + 1;
-			}
-		} else if (entrance.shape.x === 0) {
-			dir = dirs.right;
-			x = entrance.shape.x - 1;
-			y = entrance.shape.y - 1;
-		} else {
-			dir = dirs.left;
-			x = entrance.shape.x + 1;
-			y = entrance.shape.y;
+		// don't overcrowd the roads
+		if (this.cars.size >= this.roadCount) {
+			return;
 		}
 
-		const off = dirVec[dir](1);
-		if (!occupiedCells.has(this.map.shape.get(x + off.x, y + off.y))) {
-			const car = new Car(x, y, dir);
-			this.children.add(car);
-			this.cars.add(car);
+		// get unoccupied entrance cells
+		const entryPoints = [...this.entrances].map((e) => {
+			if (e.vertical) {
+				if (e.shape.y === 0) {
+					return {dir: dirs.up, x: e.shape.x + 1, y: e.shape.y - 1};
+				}
+
+				return {dir: dirs.down, x: e.shape.x, y: e.shape.y + 1};
+			} else if (e.shape.x === 0) {
+				return {dir: dirs.right, x: e.shape.x - 1, y: e.shape.y - 1};
+			}
+			return {dir: dirs.left, x: e.shape.x + 1, y: e.shape.y};
+		}).filter((e) => {
+			const off = dirVec[e.dir](1);
+			return !occupiedCells.has(this.map.shape.get(e.x + off.x, e.y + off.y));
+		});
+
+		if (entryPoints.length === 0) {
+			return;
 		}
+
+		// pick a random entrypoint
+		const {x, y, dir} = randItem(entryPoints);
+		const car = new Car(x, y, dir);
+		this.children.add(car);
+		this.cars.add(car);
 	}
 	onStep(frameId) {
 		if (frameId % 5 !== 0) {

@@ -413,6 +413,18 @@ export class TrafficController extends Component {
 
 		// handle cars at intersections
 		for (const [intersection, cars] of carsAtIntersection.entries()) {
+			/*
+				TODO: cars currently only enter an intersection if there are no other cars
+				which have a path that will overlap their path through the intersection.
+				this is mostly good enough in that it prevents deadlocks while allowing more
+				than one car in an intersection at once, in some scenarios, but for instance
+				a car which is "following" another car will have to wait for the first one
+				to go through the whole intersection before it will follow suit.
+				This could be improved by checking each car at *each point in time*, and
+				allowing cars to move along as long as there are no other cars in their
+				path *at the point in time which they get there*.
+			*/
+
 			// cars already in intersection keep existing claims
 			const claimedCells = new Set();
 			for (const car of carsInIntersection.get(intersection) ?? []) {

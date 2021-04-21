@@ -92,7 +92,7 @@ export const MapUi = forwardRef(function MapUi({
 		});
 
 		const mouseUp = (event) => {
-			if (event.target.tagName === "BUTTON") {
+			if (["BUTTON", "INPUT"].includes(event.target.tagName)) {
 				return;
 			}
 
@@ -109,7 +109,12 @@ export const MapUi = forwardRef(function MapUi({
 			cameraDragging = false;
 		};
 
-		const keyPress = (event) => onKey(event.key, {shift: event.shiftKey, ctrl: event.ctrlKey});
+		const keyPress = (event) => {
+			if (event.target === document.body) {
+				onKey(event.key, {shift: event.shiftKey, ctrl: event.ctrlKey});
+			}
+		};
+
 		document.addEventListener("mouseup", mouseUp);
 		document.addEventListener("keypress", keyPress);
 		return () => {

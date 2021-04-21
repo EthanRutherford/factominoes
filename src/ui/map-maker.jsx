@@ -45,7 +45,7 @@ function useTool(game, setWarning) {
 	const value = useRef({});
 
 	const tool = useCallback((...args) => {
-		if (args.length > 0) {
+		if (args.length > 0 && args[0] !== value.current) {
 			value.current = args[0];
 			toggle((t) => !t);
 		}
@@ -611,7 +611,7 @@ export function MapMaker() {
 			</div>
 			<MapUi
 				game={game}
-				style={{cursor: curTool()?.cursor}}
+				style={{cursor: curTool().cursor}}
 				onKey={(key) => curTool().onKey?.(key)}
 				onClick={(pos, meta) => curTool().onClick?.(pos, meta)}
 				onDrag={(pos, eventData) => curTool().onDrag?.(pos, eventData)}

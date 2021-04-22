@@ -411,44 +411,42 @@ export class TrafficController extends Component {
 			car.moving = true;
 		}
 
+		function addCarClaims(claims, car, intersection) {
+			const cells = carToPathCells.get(car);
+			for (let i = 0; i < claims.length; i++) {
+				if (cells[i]?.content === intersection) {
+					claims[i].add(cells[i]);
+				}
+				if (cells[i + 1]?.content === intersection) {
+					claims[i].add(cells[i + 1]);
+				}
+			}
+		}
+
 		// handle cars at intersections
 		for (const [intersection, cars] of carsAtIntersection.entries()) {
-			/*
-				TODO: cars currently only enter an intersection if there are no other cars
-				which have a path that will overlap their path through the intersection.
-				this is mostly good enough in that it prevents deadlocks while allowing more
-				than one car in an intersection at once, in some scenarios, but for instance
-				a car which is "following" another car will have to wait for the first one
-				to go through the whole intersection before it will follow suit.
-				This could be improved by checking each car at *each point in time*, and
-				allowing cars to move along as long as there are no other cars in their
-				path *at the point in time which they get there*.
-			*/
-
 			// cars already in intersection keep existing claims
-			const claimedCells = new Set();
+			const claimedCells = [new Set(), new Set(), new Set(), new Set()];
 			for (const car of carsInIntersection.get(intersection) ?? []) {
-				const cells = carToPathCells.get(car).filter((c) => c.content === intersection);
-				for (const cell of cells) {
-					claimedCells.add(cell);
-				}
+				addCarClaims(claimedCells, car, intersection);
 			}
 
 			// cars with higher waitTimes get higher priority
 			const sorted = cars.sort((a, b) => b.waitTime - a.waitTime);
 			for (const car of sorted) {
-				const cells = carToPathCells.get(car).filter((c) => c.content === intersection);
+				const cells = carToPathCells.get(car);
 
-				// if any cell in our path is claimed, abort
-				if (cells.some((c) => claimedCells.has(c))) {
+				// if any cell in our path is already claimed, abort
+				if (cells.some((cell, i) =>
+					(claimedCells[i]?.has(cell) ?? false) ||
+					(claimedCells[i]?.has(cells[i + 1]) ?? false),
+				)) {
 					continue;
 				}
 
 				// we get to move and claim cells
+				addCarClaims(claimedCells, car, intersection);
 				car.moving = true;
-				for (const cell of cells) {
-					claimedCells.add(cell);
-				}
 			}
 		}
 

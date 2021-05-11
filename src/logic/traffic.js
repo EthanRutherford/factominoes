@@ -1,8 +1,7 @@
-import {rgba, builtIn} from "2d-gl";
 import {Component} from "./component";
+import {getCar, getRoadFour, getRoadOne, getRoadThree, getRoadTwo} from "./renderables/traffic";
 import {AAP} from "./shape";
 import {randItem} from "./util";
-const {Shape, VectorMaterial} = builtIn;
 
 const dirs = {
 	up: 0,
@@ -16,30 +15,6 @@ const dirVec = {
 	[dirs.down]: (amount) => ({x: 0, y: -amount}),
 	[dirs.left]: (amount) => ({x: -amount, y: 0}),
 };
-
-const asphalt = rgba(.1, .1, .12);
-const yellow = rgba(1, 1, 0);
-const white = rgba(1, 1, 1);
-const roadCoords = [{x: 0, y: 0}, {x: 2, y: 0}, {x: 2, y: -1}, {x: 0, y: -1}];
-const roadShape = new Shape(roadCoords, Shape.triangleFan);
-const road2x2Coords = [{x: -1, y: 1}, {x: 1, y: 1}, {x: 1, y: -1}, {x: -1, y: -1}];
-const road2x2Shape = new Shape(road2x2Coords, Shape.triangleFan);
-const roadMaterial = new VectorMaterial([asphalt, asphalt, asphalt, asphalt]);
-
-const lineShape = new Shape([{x: 1, y: -.25}, {x: 1, y: -.75}], Shape.lines);
-const lineMaterial = new VectorMaterial([yellow, yellow]);
-const lineTwoCoords = [{x: 0, y: -.25}, {x: 0, y: -.75}, {x: .25, y: 0}, {x: .75, y: 0}];
-const lineTwoShape = new Shape(lineTwoCoords, Shape.lines);
-const lineTwoMaterial = new VectorMaterial([yellow, yellow, yellow, yellow]);
-const lineThreeCoords = [
-	{x: -.75, y: 0}, {x: -.25, y: 0},
-	{x: .25, y: 0}, {x: .75, y: 0},
-	{x: -1, y: -1}, {x: 1, y: -1},
-];
-const lineThreeShape = new Shape(lineThreeCoords, Shape.lines);
-const lineThreeMaterial = new VectorMaterial([yellow, yellow, yellow, yellow, white, white]);
-const lineFourShape = new Shape(road2x2Coords, Shape.lineLoop);
-const lineFourMaterial = new VectorMaterial([white, white, white, white]);
 
 export class Road extends Component {
 	constructor(shape, cells, angle) {
@@ -116,11 +91,7 @@ export class RoadOne extends Road {
 		this.vertical = vertical;
 	}
 	createRenderable(renderer) {
-		const renderable = renderer.getInstance(roadShape, roadMaterial);
-		const lines = renderer.getInstance(lineShape, lineMaterial);
-		lines.zIndex = 200;
-		renderable.getChildren = () => [lines];
-		return renderable;
+		return getRoadOne(renderer);
 	}
 	onRender() {
 		this.renderable.x = this.shape.x;
@@ -146,11 +117,7 @@ export class RoadTwo extends Road {
 		this.dir = dir;
 	}
 	createRenderable(renderer) {
-		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
-		const lines = renderer.getInstance(lineTwoShape, lineTwoMaterial);
-		lines.zIndex = 200;
-		renderable.getChildren = () => [lines];
-		return renderable;
+		return getRoadTwo(renderer);
 	}
 	onRender() {
 		this.renderable.x = this.shape.x + 1;
@@ -176,11 +143,7 @@ export class RoadThree extends Road {
 		this.dir = dir;
 	}
 	createRenderable(renderer) {
-		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
-		const lines = renderer.getInstance(lineThreeShape, lineThreeMaterial);
-		lines.zIndex = 200;
-		renderable.getChildren = () => [lines];
-		return renderable;
+		return getRoadThree(renderer);
 	}
 	onRender() {
 		this.renderable.x = this.shape.x + 1;
@@ -205,11 +168,7 @@ export class RoadFour extends Road {
 		super(shape, cells, 0);
 	}
 	createRenderable(renderer) {
-		const renderable = renderer.getInstance(road2x2Shape, roadMaterial);
-		const lines = renderer.getInstance(lineFourShape, lineFourMaterial);
-		lines.zIndex = 200;
-		renderable.getChildren = () => [lines];
-		return renderable;
+		return getRoadFour(renderer);
 	}
 	onRender() {
 		this.renderable.x = this.shape.x + 1;
@@ -221,10 +180,6 @@ function isIntersection(cell) {
 	return cell.content instanceof RoadThree || cell.content instanceof RoadFour;
 }
 
-const blue = rgba(0, 0, .75);
-const carCoords = [{x: -.25, y: .45}, {x: .25, y: .45}, {x: .25, y: -.45}, {x: -.25, y: -.45}];
-const carShape = new Shape(carCoords, Shape.triangleFan);
-const carMaterial = new VectorMaterial([blue, blue, blue, blue]);
 export class Car extends Component {
 	constructor(x, y, dir) {
 		super(AAP.fromShape(x, y, [1, -1, -1, 1]));
@@ -237,9 +192,7 @@ export class Car extends Component {
 		return this.path[0];
 	}
 	createRenderable(renderer) {
-		const renderable = renderer.getInstance(carShape, carMaterial);
-		renderable.zIndex = 300;
-		return renderable;
+		return getCar(renderer);
 	}
 	onStep(frameId) {
 		this.progress = frameId % 5;

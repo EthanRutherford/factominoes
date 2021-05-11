@@ -1,12 +1,10 @@
-import earcut from "earcut";
 import {rgba, builtIn} from "2d-gl";
 import {Component} from "./component";
+import {getBuilding} from "./renderables/building";
 import {AAP} from "./shape";
 import {Road, TrafficController} from "./traffic";
 const {Shape, VectorMaterial} = builtIn;
 
-const black = rgba(0, 0, 0);
-const lightGrey = rgba(.6, .6, .6);
 export class Building extends Component {
 	constructor(name, x, y, shape) {
 		super(AAP.fromShape(x, y, shape));
@@ -26,20 +24,11 @@ export class Building extends Component {
 		}
 	}
 	createRenderable(renderer) {
-		const tris = earcut(this.shape.coords.flatMap(({x, y}) => [x, y]));
-		const coords = tris.map((i) => this.shape.coords[i]);
-		const shape = new Shape(coords, Shape.triangles);
-		const outlineShape = new Shape(this.shape.coords, Shape.lineLoop);
-		const material = new VectorMaterial(coords.map(() => lightGrey));
-		const outlineMaterial = new VectorMaterial(this.shape.coords.map(() => black));
-		const renderable = renderer.getInstance(shape, material);
-		const outline = renderer.getInstance(outlineShape, outlineMaterial);
-		outline.zIndex = 200;
-		renderable.getChildren = () => [outline];
-		return renderable;
+		return getBuilding(renderer, this.shape.coords);
 	}
 }
 
+const black = rgba(0, 0, 0);
 const mapMaterial = new VectorMaterial([black, black, black, black]);
 export class GameMap extends Component {
 	constructor(bounds, children) {
